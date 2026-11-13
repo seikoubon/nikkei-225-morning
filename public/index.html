@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="ja"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>日経225先物｜朝の予測</title>
+<style>
+:root{color-scheme:light;--paper:#f5f3ec;--ink:#183536;--muted:#506664;--line:#cad0c6;--dark:#123c3b;--lime:#d9edb2}*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.65 system-ui,"Yu Gothic",sans-serif}header{border-bottom:1px solid var(--line);padding:14px max(5%,calc((100% - 960px)/2));display:flex;align-items:center;gap:12px;font-weight:700;white-space:nowrap}header i{display:inline-flex;gap:3px;height:20px;align-items:flex-end}header i b{background:#38726c;width:5px;height:11px}header i b:nth-child(2){height:19px}header i b:last-child{height:15px}header small{margin-left:auto;color:var(--muted);letter-spacing:.08em}main{max-width:1000px;margin:auto;padding:26px 20px 56px}.hero{background:var(--dark);color:#fff;padding:clamp(20px,4vw,40px);border-radius:8px}.hero p{color:#cde2da}.eyebrow{font-size:.78rem;letter-spacing:.07em;font-weight:650}.hero h1{font-size:clamp(26px,5vw,41px);letter-spacing:-.045em;line-height:1.3;margin:.35em 0 .55em}.hero time{font-variant-numeric:tabular-nums}#status{background:var(--lime);color:#24453c;border-radius:4px;padding:3px 10px;margin-left:8px}.pair,.metrics{display:grid;grid-template-columns:1fr 1fr;gap:18px}.pair{border-top:1px solid #54736d;padding-top:18px;margin-top:22px}.pair strong{display:block;font-size:clamp(28px,6vw,45px);font-variant-numeric:tabular-nums;line-height:1.25}.pair label{color:#cde2da}h2{font-size:21px;margin:0}section{margin-top:28px}.detail{color:var(--muted);font-size:13px}.hero .detail{color:#cde2da}.toolbar{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}.metrics{margin:14px 0}.metrics div{background:#fff;border:1px solid var(--line);border-radius:6px;padding:16px}.metrics strong{display:block;font-size:25px}.tableWrap{overflow-x:auto}table{border-collapse:collapse;width:100%;text-align:right;font-variant-numeric:tabular-nums;font-size:14px}td,th{border-bottom:1px solid var(--line);padding:10px 6px;white-space:nowrap}th:first-child,td:first-child{text-align:left}th{font-size:12px;color:var(--muted)}button,select{background:#fff;color:var(--ink);border:1px solid #a9b8b0;padding:8px;border-radius:4px;font:inherit}button:disabled{opacity:.5}a{color:var(--dark)}footer{margin-top:24px;border-top:1px solid var(--line);padding-top:12px}.pagination{display:flex;gap:12px;justify-content:flex-end;align-items:center}.hidden{display:none}@media(max-width:480px){main{padding:16px 12px 32px}td,th{padding:8px 4px;font-size:12px}.hero{padding:20px}.metrics{gap:8px}.metrics div{padding:12px}.pair{gap:10px}}
+</style>
+<header><i aria-hidden="true"><b></b><b></b><b></b></i>日経225先物 <small>大阪取引所 · JST</small></header>
+<main><div class="hero"><div class="eyebrow"><time id="day"></time><span id="status">読み込み中</span></div><h1>日中セッションの予測</h1><p>ラージ先物の始値から終値まで。現物営業日が対象です。</p><div class="pair"><div><label>予測方向</label><strong id="dir">—</strong></div><div><label>予測騰落幅</label><strong id="delta">—</strong></div></div>
+<p id="reason" role="status"></p><div class="detail" id="timing"></div></div>
+<section aria-labelledby="night-title"><div class="toolbar"><h2 id="night-title">夜間終値 <small class="detail">大阪・ラージ期近</small></h2><b id="night-state">未取得</b></div><div class="metrics"><div>夜間終値<strong id="night-close">—</strong></div><div>限月<strong id="night-contract">—</strong></div></div><p class="detail" id="night-detail"></p><div id="night-sources" class="detail"></div></section>
+<section><div class="toolbar"><h2>予測履歴と成績</h2><select id="series" aria-label="成績の集計期間"><option value="live">朝の本番記録</option><option value="validation">過去検証　2023–2024</option><option value="reference">参考　2025–2026</option></select></div><div class="metrics"><div>方向的中率<strong id="acc">—</strong><small id="nDir"></small></div><div>平均絶対誤差<strong id="mae">—</strong><small id="nMae"></small></div></div>
+<p id="feed-status" class="detail" role="status"></p><div class="tableWrap"><table><thead><tr><th>対象日</th><th>予測方向</th><th>予測幅</th><th>実際の方向</th><th>実績幅</th><th>結果</th><th>絶対誤差</th></tr></thead><tbody id="body"></tbody></table></div><p id="empty" class="detail"></p><div class="pagination"><button id="prev">前へ</button><span id="page"></span><button id="next">次へ</button></div></section>
+<footer><strong>使用モデル</strong>　A7・ロジスティック回帰（方向）／Ridge回帰（騰落幅）<div class="detail">2022年までの現物履歴で学習。両モデルは独立しているため、方向と予測幅の符号が異なることがあります。</div>
+<p class="detail" id="update"></p><a href="https://github.com/seikoubon/nikkei-225-morning" target="_blank" rel="noreferrer">GitHubの最新記録 ↗</a></footer></main>
+<script>
+const $=id=>document.getElementById(id),dir=v=>v===1?'上昇':v===-1?'下落':'—';
+const yen=v=>Number.isFinite(v)?(v>0?'+':'')+v.toLocaleString('ja-JP',{maximumFractionDigits:1})+' 円':'—';
+const jst=s=>s?new Date(s).toLocaleString('ja-JP',{timeZone:'Asia/Tokyo',hour12:false}):'—';
+const today=()=>new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Tokyo'}).format(new Date());
+let live,history=[],page=0,liveError='',historyError='';
+function results(){
+ const kind=$('series').value;
+ const rows=kind==='live'?(live?.rows||[]):history.filter(r=>kind==='validation'?r.date<'2025':r.date>='2025');
+ const scored=rows.filter(r=>Number.isFinite(r.actual)&&Number.isFinite(r.delta)),binary=scored.filter(r=>r.actual!==0);
+ const hits=binary.filter(r=>r.direction===Math.sign(r.actual)).length;
+ $('acc').textContent=binary.length?(100*hits/binary.length).toFixed(2)+'%':'—';
+ $('nDir').textContent=hits+' / '+binary.length+' 日（同値を除く）';
+ $('mae').textContent=scored.length?(scored.reduce((s,r)=>s+Math.abs(r.actual-r.delta),0)/scored.length).toFixed(2)+' 円':'—';
+ $('nMae').textContent='実績と照合済み '+scored.length+' 日';
+ const pages=Math.max(1,Math.ceil(rows.length/10));page=Math.min(page,pages-1);
+ $('body').replaceChildren();
+ for(const r of rows.slice(10*page,10*page+10)){
+ const tr=document.createElement('tr');const verdict=r.direction==null?(r.status||'未生成'):r.actual==null?'実績待ち':r.actual===0?'同値':r.direction===Math.sign(r.actual)?'的中':'不的中';
+ const actualDir=r.actual==null?'—':r.actual===0?'同値':dir(Math.sign(r.actual));
+ const error=Number.isFinite(r.actual)&&Number.isFinite(r.delta)?Math.abs(r.actual-r.delta).toLocaleString('ja-JP',{maximumFractionDigits:1})+' 円':'—';
+ for(const value of [r.date,dir(r.direction),yen(r.delta),actualDir,yen(r.actual),verdict,error]){const td=document.createElement('td');td.textContent=value;tr.append(td)}$('body').append(tr)}
+ const feed=live?.futures_feed;
+ $('feed-status').textContent=kind==='live'?(feed?'日中実績の取得：'+feed.status+'。'+(feed.reason||''):'日中実績の取得状況は未確認です。'):'';
+ $('empty').textContent=kind==='live'?(liveError||(!rows.length?'朝に発行した予測の記録はまだありません。':'')):(historyError||'過去データを使った再現予測。朝に発行した本番成績には含みません。');
+ $('page').textContent=(page+1)+' / '+pages;$('prev').disabled=page===0;$('next').disabled=page+1>=pages;
+}
+function showNight(day){
+ const ref=live?.night_reference?.close_date===day?live.night_reference:null;
+ const single=ref?.status==='取得済み（単一出典）';
+ const verified=(single || ref?.status==='照合済み') && Number.isInteger(ref.close_yen);
+ $('night-state').textContent=liveError?'読込失敗':ref?.status||'未取得';
+ $('night-close').textContent=verified?ref.close_yen.toLocaleString('ja-JP')+' 円':'—';
+ $('night-contract').textContent=verified?ref.contract:'—';
+ const note=single?'nikkei225jp.comの限月別価格表で06:00の最終約定を確認。':verified?(ref.by_0620?'両掲載の確認は06:20まで。':'両掲載の確認完了は06:20以降。'):ref?.issues?.pair||'夜間終値は未確定です。';
+ $('night-detail').textContent='終了暦日 '+day+'（JST）｜ '+note+' 日中予測とは別の参考値です。';
+ const sources=$('night-sources');sources.replaceChildren();
+ for(const [key,name] of [['nikkei225jp','nikkei225jp.com'],['matsui','松井証券'],['kabutan','株探']]){
+   const item=ref?.observations?.[key],line=document.createElement('div');
+   if(!item && key==='nikkei225jp') continue;
+   if(item){
+     const link=document.createElement('a');link.href=item.url;link.rel='noreferrer';link.target='_blank';link.textContent=name;
+     const method={article_review:'記事本文',indexed_article_review:'検索に収録された記事本文',licensed_feed:'許諾済み配信'}[item.method];
+     if(key==='nikkei225jp') line.append(link,' ｜ 夜間終了 '+jst(item.ended)+' ｜ 受領 '+jst(item.observed));
+     else line.append(link,'　'+method+' ｜ 掲載 '+jst(item.published)+' ｜ 確認 '+jst(item.observed));
+   }else{line.textContent=name+'　'+(ref?.issues?.[key]||'未取得')}
+   sources.append(line);
+ }
+}
+function headline(){
+ const d=today(),morning=live?.rows.find(x=>x.date===d),preview=live?.advance;
+ const ahead=preview?.kind==='advance' && preview.date>=d && Date.now()<Date.parse(preview.cutoff)
+             && (preview.date>d || !morning);
+ const r=ahead?preview:morning;
+ showNight(d);
+ $('day').textContent=(r?.date||d)+'　';$('status').textContent=liveError?'取得失敗':ahead?'前営業日引け後の予測':r?.status||'未生成';
+ $('reason').textContent=liveError||(ahead?'翌営業日向けの先行値です。朝の本番記録は対象日06:20以降に発行します。':'')||r?.reason||(r?.issued?'':'本日分の朝の記録は未着です。');
+ $('dir').textContent=dir(r?.direction);$('delta').textContent=yen(r?.delta);
+ $('timing').textContent='入力締切 06:20　｜　公開目標 07:00　｜　発行 '+jst(r?.issued);
+ $('update').textContent='記録更新 '+jst(live?.updated)+' JST　｜　入力の最終取引日時 '+jst(r?.input_end)+'　｜　直近の受領 '+jst(r?.input_received)
+ +(live?'　｜　既存6市場の朝スナップショット '+live.market_date+' '+(live.market_snapshot?'保存あり':'未確認'):'');
+}
+async function get(url){const res=await fetch(url,{cache:'no-store'});if(!res.ok)throw Error(res.status);return res.json()}
+async function refresh(){try{live=await get('dashboard.json');liveError=''}catch(e){live=undefined;liveError='本番記録を読み込めません。GitHubの最新記録を確認してください。'} headline();results()}
+$('series').onchange=()=>{page=0;results()};$('prev').onclick=()=>{page--;results()};$('next').onclick=()=>{page++;results()};
+refresh();get('history.json').then(r=>{history=r;results()}).catch(()=>{historyError='過去検証の読み込みに失敗しました。';results()});setInterval(refresh,60000);
+</script></html>
