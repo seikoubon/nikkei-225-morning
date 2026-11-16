@@ -3,10 +3,6 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
-  schedule:
-    - cron: '55 21 * * 0-4' # 06:55 JST, after the morning sync
-    - cron: '25 22 * * 0-4' # 07:25 JST, morning retry
-    - cron: '55 7,8,12 * * 1-5' # 16:55, 17:55, 21:55 JST
 permissions:
   contents: read
   pages: write
